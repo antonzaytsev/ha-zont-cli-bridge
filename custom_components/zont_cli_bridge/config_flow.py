@@ -128,7 +128,12 @@ class ZontCliBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
         circuits = config.get("heating_circuits", [])
         sensors = config.get("wired_temperature_sensors", [])
         virtual = [row for row in sensors if str(row.get("serial")) == "0"]
-        physical = [row for row in sensors if str(row.get("serial")) != "0"]
+        # ZONT stores analog probes separately from digital wired probes.
+        physical_by_id = {row["id"]: row for row in [
+            *[row for row in sensors if str(row.get("serial")) != "0"],
+            *config.get("analog_temperature_sensors", []),
+        ] if isinstance(row, dict) and "id" in row}
+        physical = list(physical_by_id.values())
         if not circuits or not virtual or not physical:
             return self.async_abort(reason="configuration_required")
         errors = {}

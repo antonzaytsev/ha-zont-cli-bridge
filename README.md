@@ -1,6 +1,6 @@
 # ZONT for Home Assistant — standalone alpha
 
-**0.2.0a1 connects directly to ZONT from Home Assistant.** Configure the server address, API token and required client contact email in the native HA integration dialog. No CLI, Node process, external bridge or HA helper entities are required.
+**0.2.0a2 connects directly to ZONT from Home Assistant.** Configure the server address, API token and required client contact email in the native HA integration dialog. No CLI, Node process, external bridge or HA helper entities are required.
 
 Requires Home Assistant **2026.11.0 or newer** and an already configured ZONT controller with a heating circuit assigned to an existing external serial-zero virtual temperature sensor and physical reserve. This alpha discovers and validates that setup; it does not create sensors or modify controller configuration, PID, weather compensation or heating modes.
 

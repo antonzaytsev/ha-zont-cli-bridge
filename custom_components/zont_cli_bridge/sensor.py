@@ -22,7 +22,12 @@ DESCRIPTIONS = tuple(
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    async_add_entities([ZontBoilerSensor(entry.runtime_data, description) for description in DESCRIPTIONS] + [ZontBridgeStatus(entry.runtime_data)])
+    coordinator = entry.runtime_data
+    entities = [ZontBoilerSensor(coordinator, description) for description in DESCRIPTIONS]
+    # A legacy observer must never publish an entity that can replace its input.
+    if coordinator.runtime is not None:
+        entities.append(ZontBridgeStatus(coordinator))
+    async_add_entities(entities)
 
 
 class ZontBridgeStatus(ZontBridgeEntity, SensorEntity):
@@ -30,6 +35,7 @@ class ZontBridgeStatus(ZontBridgeEntity, SensorEntity):
 
     def __init__(self, coordinator):
         super().__init__(coordinator, "bridge_status", "zont_native_bridge_status")
+        self.entity_id = "sensor.zont_native_bridge_status"
 
     @property
     def available(self):

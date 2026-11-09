@@ -113,3 +113,24 @@ class OptionsTests(unittest.IsolatedAsyncioTestCase):
         self.assertIs(updates[0][0], entry)
         self.assertFalse(updates[0][1]["options"]["feedback_enabled"])
         self.assertEqual(reloads, ["existing-entry"])
+
+    async def test_assignment_includes_analog_reserve_and_preserves_assignment_guard(self):
+        flow = self.flow_module.ZontCliBridgeConfigFlow()
+        flow.hass = self.hass
+        flow._credentials = {"origin": "https://example.com"}
+        flow._selection = {"device_id": 100}
+        flow._async_current_entries = lambda: []
+        flow._full = {"serial": "test-controller", "device_type": {"code": "test-model"},
+                      "hardware_type": {"code": 1}, "firmware_version": [2], "z3k_config": {
+                          "heating_circuits": [{"id": 200, "air_temp_sensor": 300, "air_temp_sensor_reserve": 400}],
+                          "wired_temperature_sensors": [{"id": 300, "serial": "0", "name": "Virtual", "no_connection_timeout": 1},
+                                                        {"id": 301, "serial": "weather", "name": "Outdoor"}],
+                          "analog_temperature_sensors": [{"id": 400, "name": "Analog reserve"}]}}
+        form = await flow.async_step_assignment()
+        physical = next(value for marker, value in form["data_schema"].items() if marker.key == "physical_sensor_id")
+        self.assertEqual({row["value"] for row in physical["options"]}, {"301", "400"})
+        rejected = await flow.async_step_assignment({"circuit_id": "200", "virtual_sensor_id": "300", "physical_sensor_id": "301"})
+        self.assertEqual(rejected["errors"]["base"], "configuration_required")
+        accepted = await flow.async_step_assignment({"circuit_id": "200", "virtual_sensor_id": "300", "physical_sensor_id": "400"})
+        self.assertEqual(accepted["step_id"], "sources")
+        self.assertEqual(flow._selection["physical_sensor_id"], 400)
