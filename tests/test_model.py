@@ -110,3 +110,13 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(model.room_action(True, True, False), "heating")
         self.assertEqual(model.room_action(True, False, True), "idle")
         self.assertIsNone(model.room_action(True, True, True))
+
+    def test_standalone_control_lease_uses_180_seconds_with_separate_heartbeat(self):
+        attrs = sample()
+        attrs.update(control_available=True, control_verified_at=(NOW - timedelta(seconds=120)).isoformat())
+        self.assertTrue(self.project(attrs).control_available)
+        attrs["control_verified_at"] = (NOW - timedelta(seconds=181)).isoformat()
+        self.assertFalse(self.project(attrs).control_available)
+        attrs["control_verified_at"] = NOW.isoformat()
+        attrs["heartbeat"] = (NOW - timedelta(seconds=91)).isoformat()
+        self.assertFalse(self.project(attrs).control_available)

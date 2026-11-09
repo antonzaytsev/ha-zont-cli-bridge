@@ -22,7 +22,31 @@ DESCRIPTIONS = tuple(
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    async_add_entities(ZontBoilerSensor(entry.runtime_data, description) for description in DESCRIPTIONS)
+    async_add_entities([ZontBoilerSensor(entry.runtime_data, description) for description in DESCRIPTIONS] + [ZontBridgeStatus(entry.runtime_data)])
+
+
+class ZontBridgeStatus(ZontBridgeEntity, SensorEntity):
+    _attr_icon = "mdi:connection"
+
+    def __init__(self, coordinator):
+        super().__init__(coordinator, "bridge_status", "zont_native_bridge_status")
+
+    @property
+    def available(self):
+        return self.coordinator.data.heartbeat_fresh
+
+    @property
+    def native_value(self):
+        return self.coordinator.data.bridge_state
+
+    @property
+    def extra_state_attributes(self):
+        # Runtime status is a deliberately sanitized public protocol, never entry data.
+        allowed = ("heartbeat", "phase", "configuration_block", "actual_target", "source_temperature",
+                   "source_measured_at", "last_verified_delivery", "source_entity", "source_label",
+                   "source_role", "error", "boiler", "control_available", "control_verified_at", "source_entity_id",
+                   "active_sensor", "primary_source_label", "fallback_source_label", "source_age_seconds", "actual_mode", "goal_state")
+        return {key: value for key, value in self.coordinator.raw_status.items() if key in allowed}
 
 
 class ZontBoilerSensor(ZontBridgeEntity, SensorEntity):

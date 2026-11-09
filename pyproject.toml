@@ -1,7 +1,7 @@
 [project]
 name = "ha-zont-cli-bridge"
-version = "0.1.0a1"
-description = "Home Assistant companion for an external ZONT CLI bridge"
+version = "0.2.0a1"
+description = "Native Home Assistant ZONT cloud integration"
 requires-python = ">=3.14"
 license = "MIT"
 

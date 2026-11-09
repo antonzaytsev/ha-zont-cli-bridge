@@ -5,7 +5,7 @@ from homeassistant.components.climate import ClimateEntity, ClimateEntityFeature
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.exceptions import HomeAssistantError
 
-from .const import CONF_GOAL_HELPER, MAX_TEMPERATURE, MIN_TEMPERATURE
+from .const import MAX_TEMPERATURE, MIN_TEMPERATURE
 from .entity import ZontBridgeEntity
 
 
@@ -52,8 +52,7 @@ class ZontBridgeClimate(ZontBridgeEntity, ClimateEntity):
         target = kwargs.get(ATTR_TEMPERATURE)
         if isinstance(target, bool) or not isinstance(target, (int, float)) or not math.isfinite(target) or not MIN_TEMPERATURE <= target <= MAX_TEMPERATURE:
             raise HomeAssistantError("The room target must be a finite number between 5 and 30 °C")
-        helper = self.coordinator.entry.data[CONF_GOAL_HELPER]
-        state = self.hass.states.get(helper)
-        if state is None or state.state in ("unknown", "unavailable"):
-            raise HomeAssistantError("The configured room-target helper is unavailable")
-        await self.hass.services.async_call("input_number", "set_value", {"entity_id": helper, "value": target}, blocking=True)
+        try:
+            await self.coordinator.async_set_target(target)
+        except Exception as error:
+            raise HomeAssistantError("The controller target request was not verified") from error

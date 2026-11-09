@@ -48,7 +48,7 @@ class ClimateTests(unittest.IsolatedAsyncioTestCase):
 
         self.data = SimpleNamespace(control_available=True, current_temperature=21, room_target=24, room_hvac_action="idle")
         self.hass = SimpleNamespace(states=SimpleNamespace(get=lambda _id: SimpleNamespace(state="24")), services=SimpleNamespace(async_call=call))
-        self.coordinator = SimpleNamespace(hass=self.hass, data=self.data, entry=SimpleNamespace(data={"goal_helper": "input_number.configured_goal"}), async_refresh_snapshot=lambda: None)
+        self.coordinator = SimpleNamespace(hass=self.hass, data=self.data, async_refresh_snapshot=lambda: None, async_set_target=call)
 
     async def test_platform_setup_and_properties_never_write(self):
         entities = []
@@ -60,10 +60,10 @@ class ClimateTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(climate._attr_hvac_modes, [Mode.HEAT])
         self.assertEqual(self.calls, [])
 
-    async def test_explicit_setter_only_writes_configured_helper(self):
+    async def test_explicit_setter_only_calls_native_guarded_target(self):
         climate = self.climate_module.ZontBridgeClimate(self.coordinator)
         await climate.async_set_temperature(temperature=25)
-        self.assertEqual(self.calls, [(("input_number", "set_value", {"entity_id": "input_number.configured_goal", "value": 25}), {"blocking": True})])
+        self.assertEqual(self.calls, [((25,), {})])
 
     async def test_stale_and_invalid_targets_cannot_write(self):
         climate = self.climate_module.ZontBridgeClimate(self.coordinator)

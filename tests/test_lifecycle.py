@@ -1,4 +1,5 @@
 """Exercise actual coordinator with small documented HA API doubles."""
+import asyncio
 from datetime import timedelta
 from types import ModuleType, SimpleNamespace
 import sys
@@ -28,13 +29,54 @@ def module(name, **values):
     return result
 
 
-class LifecycleTests(unittest.TestCase):
-    def test_timer_expiry_and_unload_with_no_service_writes(self):
+class LifecycleTests(unittest.IsolatedAsyncioTestCase):
+    async def test_standalone_nonoverlap_and_cancel_before_socket_close(self):
+        callbacks, removed, events = {}, [], []
+
+        def track(_hass, callback, interval):
+            callbacks[interval.total_seconds()] = callback
+            return lambda: removed.append(interval.total_seconds())
+
+        stubs = {"homeassistant": module("homeassistant"),
+                 "homeassistant.core": module("homeassistant.core", callback=lambda fn: fn),
+                 "homeassistant.helpers": module("homeassistant.helpers"),
+                 "homeassistant.helpers.event": module("homeassistant.helpers.event", async_track_state_change_event=lambda *args: None, async_track_time_interval=track),
+                 "homeassistant.helpers.update_coordinator": module("homeassistant.helpers.update_coordinator", DataUpdateCoordinator=CoordinatorDouble),
+                 "homeassistant.util": module("homeassistant.util", dt=SimpleNamespace(utcnow=lambda: NOW))}
+
+        async def tick():
+            events.append("started")
+            try:
+                await asyncio.Event().wait()
+            finally:
+                events.append("cancelled")
+
+        async def close():
+            events.append("closed")
+
+        with patch.dict(sys.modules, stubs):
+            coordinator = load("coordinator")
+            hass = SimpleNamespace(async_create_task=asyncio.create_task)
+            instance = coordinator.ZontBridgeCoordinator(hass, SimpleNamespace(data={}), SimpleNamespace(tick=tick, close=close))
+            instance.async_start()
+            callbacks[30](None)
+            await asyncio.sleep(0)
+            callbacks[30](None)
+            await asyncio.sleep(0)
+            self.assertEqual(events, ["started"])
+            await instance.async_stop()
+            self.assertEqual(events, ["started", "cancelled", "closed"])
+            self.assertCountEqual(removed, [15, 30])
+            callbacks[30](None)
+            await asyncio.sleep(0)
+            self.assertEqual(events, ["started", "cancelled", "closed"])
+
+    async def test_timer_expiry_and_unload_with_no_service_writes(self):
         callbacks = {}
         removed = []
 
         def track_state(_hass, entities, callback):
-            self.assertEqual(len(entities), 4)
+            self.assertEqual(len(entities), 1)
             callbacks["state"] = callback
             return lambda: removed.append("state")
 
@@ -65,10 +107,10 @@ class LifecycleTests(unittest.TestCase):
             callbacks["time"](None)
             self.assertFalse(instance.data.boiler_available)
             self.assertFalse(instance.data.control_available)
-            instance.async_stop()
+            await instance.async_stop()
             self.assertCountEqual(removed, ["state", "time"])
             count = len(instance.updates)
             callbacks["time"](None)
             callbacks["state"](None)
-            instance.async_stop()
+            await instance.async_stop()
             self.assertEqual(len(instance.updates), count)

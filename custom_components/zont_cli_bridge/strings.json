@@ -1,96 +1,28 @@
 {
-  "title": "ZONT CLI Bridge",
+  "title": "ZONT",
   "config": {
     "step": {
-      "user": {
-        "title": "Connect an existing CLI bridge",
-        "description": "Alpha companion: a configured external ZONT CLI bridge with protocol v1 and these HA helpers is required. This integration does not connect directly to ZONT.",
-        "data": {
-          "bridge_entity": "Bridge status sensor",
-          "primary_helper": "Primary source helper",
-          "fallback_helper": "Fallback source helper",
-          "goal_helper": "Room target helper"
-        }
-      }
+      "user": {"title": "Connect to ZONT", "description": "Enter your ZONT server, API token and client contact email. Existing controller configuration is required. Feedback starts disabled.", "data": {"origin": "Server address", "token": "API token", "client": "Client contact email"}},
+      "reconfigure": {"title": "Configure native ZONT connection", "description": "Enter credentials directly in HA. Leave token blank to keep an existing native token. Feedback starts disabled; stop any external feeder before enabling it in options.", "data": {"origin": "Server address", "token": "API token", "client": "Client contact email"}},
+      "reauth_confirm": {"title": "Renew ZONT credentials", "data": {"origin": "Server address", "token": "API token", "client": "Client contact email"}},
+      "device": {"title": "Select controller", "data": {"device_id": "Controller"}},
+      "assignment": {"title": "Select existing configured sensors", "description": "Select a circuit already assigned to an external serial-zero virtual temperature sensor and a physical reserve. No controller configuration is created or changed.", "data": {"circuit_id": "Heating circuit", "virtual_sensor_id": "Existing external virtual sensor", "physical_sensor_id": "Existing wired reserve sensor"}},
+      "sources": {"title": "Select HA temperature sources", "description": "Select any temperature entity, including BLE or Zigbee. Setup always starts with feedback disabled. Enable it later in options after stopping other feeders.", "data": {"primary_temperature_entity": "Primary temperature sensor", "fallback_temperature_entity": "Fallback HA temperature sensor", "physical_fallback": "Use wired controller fallback", "feedback_enabled": "Enable temperature feedback"}}
     },
-    "error": {
-      "invalid_helper": "Select existing, available helpers of the indicated type.",
-      "same_helpers": "Primary and fallback helpers must differ.",
-      "backend_protocol": "The bridge must expose boiler protocol schema_version 1."
-    },
-    "abort": {
-      "already_configured": "This bridge is already configured."
-    }
+    "error": {"invalid_auth": "ZONT rejected the credentials.", "cannot_connect": "Could not connect. Check the HTTPS server address, token and contact email.", "no_devices": "No controllers were returned for this account.", "configuration_required": "The selected existing circuit, virtual sensor and reserve assignment is not ready."},
+    "abort": {"already_configured": "This controller already has an entry.", "configuration_required": "Configure an external serial-zero temperature sensor and a physical reserve in ZONT first.", "reconfigure_successful": "Native connection updated. Feedback is disabled until explicitly enabled in options."}
   },
   "options": {
-    "step": {
-      "init": {
-        "title": "Select temperature sources",
-        "description": "Choose any HA temperature entity, including BLE or Zigbee. Values are read from the current bridge helpers. Target temperature is unchanged. Wired fallback uses the controller sensor.",
-        "data": {
-          "primary_temperature_entity": "Primary temperature sensor",
-          "physical_fallback": "Use wired controller sensor as fallback",
-          "fallback_temperature_entity": "Fallback HA temperature sensor"
-        }
-      }
-    },
-    "error": {
-      "invalid_temperature": "Choose existing temperature sensors with °C, °F or K units.",
-      "duplicate_source": "Primary and fallback sensors must differ.",
-      "invalid_helper": "A source helper is unavailable.",
-      "selection_changed": "Another change occurred while saving. The current selections are shown; review and retry.",
-      "write_failed": "Saving was incomplete. The current selections are shown; review and retry."
-    }
+    "step": {"init": {"title": "Temperature feedback", "description": "Stop any other feeder before enabling feedback. Physical fallback means stopping virtual injection; controller takeover is not proven by this selection. These settings are stored in HA; no helpers are required.", "data": {"primary_temperature_entity": "Primary temperature sensor", "fallback_temperature_entity": "Fallback HA temperature sensor", "physical_fallback": "Use wired controller fallback", "feedback_enabled": "Enable temperature feedback"}}},
+    "error": {"invalid_temperature": "Select existing temperature entities with °C, °F or K units.", "duplicate_source": "Primary and fallback temperature entities must differ."},
+    "abort": {"reconfigure_required": "Reconfigure this legacy companion entry with a ZONT server and token first."}
   },
   "entity": {
+    "climate": {"heating_control": {"name": "Room heating"}},
+    "binary_sensor": {"flame": {"name": "Boiler flame"}, "heating": {"name": "Boiler heating mode"}, "dhw": {"name": "Boiler hot water mode"}},
     "sensor": {
-      "supply_temperature": {
-        "name": "Boiler supply temperature"
-      },
-      "return_temperature": {
-        "name": "Boiler return temperature"
-      },
-      "target_temperature": {
-        "name": "Boiler water target"
-      },
-      "circuit_water_request": {
-        "name": "Heating circuit water request"
-      },
-      "burner_modulation": {
-        "name": "Burner modulation"
-      },
-      "read_timestamp": {
-        "name": "Boiler cloud read time"
-      },
-      "operation": {
-        "name": "Boiler operation",
-        "state": {
-          "heating": "Heating with flame",
-          "dhw": "Hot water with flame",
-          "heating_and_dhw": "Heating and hot water with flame",
-          "heating_without_flame": "Heating mode without flame",
-          "dhw_without_flame": "Hot water mode without flame",
-          "both_without_flame": "Heating and hot water modes without flame",
-          "idle": "Idle",
-          "flame_only": "Flame without heating or hot water flag"
-        }
-      }
-    },
-    "binary_sensor": {
-      "flame": {
-        "name": "Boiler flame"
-      },
-      "heating": {
-        "name": "Boiler heating mode"
-      },
-      "dhw": {
-        "name": "Boiler hot water mode"
-      }
-    },
-    "climate": {
-      "heating_control": {
-        "name": "Room heating"
-      }
+      "supply_temperature": {"name": "Boiler supply temperature"}, "return_temperature": {"name": "Boiler return temperature"}, "target_temperature": {"name": "Boiler water target"}, "circuit_water_request": {"name": "Heating circuit water request"}, "burner_modulation": {"name": "Burner modulation"}, "read_timestamp": {"name": "Boiler cloud read time"}, "bridge_status": {"name": "Bridge status"},
+      "operation": {"name": "Boiler operation", "state": {"heating": "Heating with flame", "dhw": "Hot water with flame", "heating_and_dhw": "Heating and hot water with flame", "heating_without_flame": "Heating mode without flame", "dhw_without_flame": "Hot water mode without flame", "both_without_flame": "Heating and hot water modes without flame", "idle": "Idle", "flame_only": "Flame without heating or hot water flag"}}
     }
   }
 }

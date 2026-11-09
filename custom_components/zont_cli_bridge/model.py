@@ -121,10 +121,13 @@ def project(attributes: Any, state: str | None, now: datetime) -> BridgeSnapshot
         values["read_timestamp"] = timestamp(boiler.get("read_at"))
     return BridgeSnapshot(
         heartbeat_fresh=alive,
-        control_available=alive and active and not blocked,
+        control_available=alive and active and not blocked and (
+            "control_available" not in attributes or
+            (attributes.get("control_available") is True and fresh(attributes.get("control_verified_at"), now, BOILER_SECONDS))
+        ),
         boiler_available=bool(available),
         bridge_state=state if isinstance(state, str) and len(state) <= 100 else None,
-        phase=attributes.get("phase") if attributes.get("phase") in ("active", "preflight") else None,
+        phase=attributes.get("phase") if attributes.get("phase") in ("active", "preflight", "read_only") else None,
         current_temperature=current,
         room_target=number(attributes.get("actual_target"), 5.0, 30.0) if alive else None,
         boiler_values=values,

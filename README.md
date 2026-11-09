@@ -1,47 +1,37 @@
-# ZONT CLI Bridge for Home Assistant
+# ZONT for Home Assistant — standalone alpha
 
-**0.1.0a1 — alpha companion integration. An already configured external ZONT CLI bridge is required.** This is not a standalone ZONT integration and does not configure a controller or accept ZONT credentials. The backend remains responsible for source arbitration, verified temperature delivery, physical fallback and controller commands.
+**0.2.0a1 connects directly to ZONT from Home Assistant.** Configure the server address, API token and required client contact email in the native HA integration dialog. No CLI, Node process, external bridge or HA helper entities are required.
 
-The integration observes a bridge status entity already present in Home Assistant. It provides native boiler sensors, a room climate entity and native temperature entity pickers. A later BLE, Zigbee or other temperature entity appears automatically when it has the temperature device class. Select the temperature entity belonging to the desired device; a device can expose several measurements.
+Requires Home Assistant **2026.11.0 or newer** and an already configured ZONT controller with a heating circuit assigned to an existing external serial-zero virtual temperature sensor and physical reserve. This alpha discovers and validates that setup; it does not create sensors or modify controller configuration, PID, weather compensation or heating modes.
 
-## Installation
+## Setup / Настройка
 
-Requires Home Assistant **2026.11.0 or newer** and external bridge protocol v1. This alpha is distributed as a custom integration; add this repository to the Home Assistant Marketplace as an integration repository and explicitly select the prerelease. Alternatively copy `custom_components/zont_cli_bridge` to your HA configuration's `custom_components` directory, then restart HA.
+Install this repository through Home Assistant Marketplace as a custom integration, selecting the prerelease, or copy `custom_components/zont_cli_bridge` to HA's custom components directory and restart HA. Add **ZONT** in Settings → Devices & services. Enter the HTTPS origin (default `https://my.zont.online`), token and client email; select the controller, configured heating circuit, existing virtual sensor and wired reserve. Select the primary HA temperature entity and a second HA entity or wired fallback. Feedback initially remains **disabled** while telemetry is read. Stop every external feeder before enabling native feedback in integration options.
 
-Add **ZONT CLI Bridge** in Settings → Devices & services → Add integration. Select the existing bridge status sensor and the three helpers. Default entity IDs are `sensor.zont_bridge_status`, `input_text.zont_primary_temperature_entity`, `input_text.zont_fallback_temperature_entity`, and `input_number.zont_room_target`. Existing values are preserved. No helper or controller writes occur during setup, reload or restart.
+Откройте Настройки → Устройства и службы → Добавить интеграцию → ZONT. Укажите адрес сервера, API-токен и email клиента. Выберите контроллер, уже настроенный контур, виртуальный датчик с нулевым серийным номером и проводной резерв. Затем выберите температурную сущность HA: поддерживаются BLE, Zigbee и любые другие интеграции. Новые датчики автоматически появляются в стандартном выборе HA. После настройки передача температуры выключена. Сначала остановите другие процессы передачи, затем включите её в параметрах интеграции.
 
-Open the integration's configuration/options dialog to select a primary temperature entity and either another HA temperature entity or the wired controller fallback. The selectors use HA's native temperature entity selector with no integration allowlist. The form reads the helpers' current values each time; it does not replay stored selections. Both selections are validated before any write. Saving updates only the two source helpers. These are separate service calls: if a concurrent change or partial failure occurs, the dialog displays the resulting live selections and requires review; it does not blindly roll back another change.
+A device can expose multiple measurements: choose its temperature entity. Any existing entity with temperature device class and °C, °F or K units is eligible, including one currently unavailable if its metadata remains. The primary and HA fallback must differ. Options are stored in HA's config entry, with native selectors and no fixed sensor list. Token fields never display stored tokens. Credentials remain in HA's config-entry storage; diagnostics exclude entry data and raw controller responses.
 
-The climate entity adjusts only the configured room-target helper, within 5–30 °C. It supports heat mode only. It does not offer power-off or controller mode commands. The backend applies and verifies the request using its existing rules. A successful helper write is not a controller acknowledgement.
+## Upgrade from 0.1 companion
 
-Selecting physical fallback configures a preference; it does not verify that fallback has worked on the controller. Verification belongs to the external bridge and deployment checks.
+The domain and config-entry/entity unique IDs are preserved. A legacy entry initially observes its old status entity **read-only**, with climate writes disabled. Use the entry's Reconfigure action to enter native credentials and selections. No credentials are imported automatically and no old target is replayed. Blank token on later native reconfiguration keeps the stored native token. Feedback remains disabled after reconfiguration. Stop and retire the old external feeder before explicitly enabling feedback; only one process may feed a controller. Old helpers can remain for rollback but are unused by native operation.
 
-## Entities and freshness
+One native entry reserves the whole controller at a canonical server origin. A second entry is rejected even for another circuit. Ownership is held until socket and pending task shutdown completes. Reloads stop the old runtime before starting a new one. Failed/cancelled shutdown retains ownership rather than risking two writers.
 
-The table lists metric ID hints, not a fixed entity-ID contract. Home Assistant 2026.11 can generate IDs from the device and translated entity names instead, for example `sensor.zont_cli_bridge_boiler_supply_temperature` and `climate.zont_cli_bridge_room_heating`. Use the actual IDs shown on the integration's device page when building dashboards; HA can also add collision suffixes.
+## Controls, telemetry and limits
 
-| Entity | Meaning |
-| --- | --- |
-| `climate.zont_cli_bridge_heating` | Room temperature, observed room target and target-helper control |
-| `sensor.zont_boiler_supply_temperature` | Boiler water supply, °C |
-| `sensor.zont_boiler_return_temperature` | Boiler water return, °C |
-| `sensor.zont_boiler_target_temperature` | Boiler water target, °C |
-| `sensor.zont_boiler_circuit_water_request` | Heating circuit water request, °C |
-| `sensor.zont_boiler_burner_modulation` | Burner modulation, % |
-| `sensor.zont_boiler_operation` | Explicit flame/heating/DHW flag combination |
-| `sensor.zont_boiler_read_timestamp` | Last successful cloud read timestamp |
-| `binary_sensor.zont_boiler_flame` | Explicit flame flag |
-| `binary_sensor.zont_boiler_heating` | Explicit heating mode flag |
-| `binary_sensor.zont_boiler_dhw` | Explicit hot water mode flag |
+`climate.zont_cli_bridge_heating` shows verified room feedback and observed room target. Explicit temperature changes call the native runtime, require fresh validated controller identity/assignment and active feedback lease, write once and verify by reread. There is no startup target write, pending target replay or power-off control. External concurrent target changes cause rejection instead of overwriting the last observed value.
 
-Heating/DHW mode flags do not by themselves mean that fuel is burning. The operation enum distinguishes modes without flame. No pump state is invented. Climate heating action requires flame and heating with no DHW flag; ambiguous combinations have no inferred action.
+Suggested telemetry IDs are `sensor.zont_boiler_supply_temperature`, `return_temperature`, `target_temperature`, `circuit_water_request`, `burner_modulation`, `operation`, `read_timestamp` (each prefixed `sensor.zont_boiler_`), plus `binary_sensor.zont_boiler_flame`, `heating`, `dhw` (each prefixed `binary_sensor.zont_boiler_`). Existing IDs survive upgrades; HA may suffix new IDs on collision. Native status uses `sensor.zont_native_bridge_status`; the old REST-published entity is not written by this integration.
 
-The local 15-second timer expires stale observations even when no new state event arrives. Boiler data requires a heartbeat no older than 90 seconds, cloud read and controller receipt no older than 180 seconds, explicit online/healthy flags and schema v1. Timestamps more than 60 seconds in the future are invalid. Individual missing, malformed or nonfinite values are unavailable, not zero. Zero modulation and false flags are valid. Room feedback separately requires a fresh heartbeat, verified delivery within 90 seconds and a source measurement within 90 minutes. Controls require a fresh heartbeat, active bridge phase and no configuration block.
+Boiler telemetry is independent of feedback/source availability. Full cloud reads occur every 120 seconds; feedback ticks every 30 seconds, expiry is checked every 15 seconds. Boiler availability requires heartbeat within 90 seconds, cloud-read/controller-receipt within 180 seconds, schema v1 and online/healthy flags. More than 60 seconds of future skew is rejected. Missing values stay unavailable; zero modulation and false flags remain valid. Room source readings expire after 90 minutes and verified delivery after 90 seconds. History resolution follows polling and begins when recorder receives installed entities.
 
-The external backend's polling interval determines measurement resolution; this integration makes no extra ZONT requests. HA history begins when entities are installed and recorder is enabled. Cloud read/receipt times do not prove when individual physical registers were sampled. See [protocol](docs/protocol.md).
+Heating and DHW flags describe modes, not proof of burning. The operation sensor distinguishes modes without flame; climate heating action requires flame plus heating without DHW. No pump state is inferred. Controller/configuration drift blocks feedback without repairing settings. Transient failures reconnect with backoff and uncertain writes are reconciled before later feeds.
+
+Selecting physical fallback means stopping virtual injection. It **does not verify hardware takeover**. HA downtime stops feedback; wired fallback must be independently tested on the controller. This alpha does not provide a safety guarantee. See [protocol](docs/protocol.md).
 
 ## Development
 
-Run `python -m unittest discover -s tests -v` and `python -m compileall -q custom_components`. Pure protocol/lifecycle tests do not require a running HA or a ZONT account. Deployment must additionally validate against the actual supported HA release. No tests operate heating equipment.
+Run `python -m unittest discover -s tests -v`, `python -m compileall -q custom_components` and `ruff check .`. Tests use loopback HTTP/WS or doubles and never operate heating equipment. Runtime imports and native selectors must also be validated on the supported HA release.
 
-MIT licensed. This independent companion is not an official ZONT product.
+MIT licensed; independent and not an official ZONT product.

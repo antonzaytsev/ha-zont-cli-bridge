@@ -16,9 +16,9 @@ class ZontBridgeEntity(CoordinatorEntity):
         self._attr_translation_key = key
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},
-            name="ZONT CLI Bridge",
+            name="ZONT",
             manufacturer="ZONT",
-            model="External CLI companion",
+            model="Native cloud integration",
             sw_version=VERSION,
         )
 
