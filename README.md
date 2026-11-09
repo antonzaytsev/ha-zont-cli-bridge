@@ -18,7 +18,7 @@ Selecting physical fallback configures a preference; it does not verify that fal
 
 ## Entities and freshness
 
-Suggested IDs (HA may add a suffix if an ID already exists):
+The table lists metric ID hints, not a fixed entity-ID contract. Home Assistant 2026.11 can generate IDs from the device and translated entity names instead, for example `sensor.zont_cli_bridge_boiler_supply_temperature` and `climate.zont_cli_bridge_room_heating`. Use the actual IDs shown on the integration's device page when building dashboards; HA can also add collision suffixes.
 
 | Entity | Meaning |
 | --- | --- |
