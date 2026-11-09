@@ -1,0 +1,96 @@
+{
+  "title": "ZONT CLI Bridge",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect an existing CLI bridge",
+        "description": "Alpha companion: a configured external ZONT CLI bridge with protocol v1 and these HA helpers is required. This integration does not connect directly to ZONT.",
+        "data": {
+          "bridge_entity": "Bridge status sensor",
+          "primary_helper": "Primary source helper",
+          "fallback_helper": "Fallback source helper",
+          "goal_helper": "Room target helper"
+        }
+      }
+    },
+    "error": {
+      "invalid_helper": "Select existing, available helpers of the indicated type.",
+      "same_helpers": "Primary and fallback helpers must differ.",
+      "backend_protocol": "The bridge must expose boiler protocol schema_version 1."
+    },
+    "abort": {
+      "already_configured": "This bridge is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Select temperature sources",
+        "description": "Choose any HA temperature entity, including BLE or Zigbee. Values are read from the current bridge helpers. Target temperature is unchanged. Wired fallback uses the controller sensor.",
+        "data": {
+          "primary_temperature_entity": "Primary temperature sensor",
+          "physical_fallback": "Use wired controller sensor as fallback",
+          "fallback_temperature_entity": "Fallback HA temperature sensor"
+        }
+      }
+    },
+    "error": {
+      "invalid_temperature": "Choose existing temperature sensors with °C, °F or K units.",
+      "duplicate_source": "Primary and fallback sensors must differ.",
+      "invalid_helper": "A source helper is unavailable.",
+      "selection_changed": "Another change occurred while saving. The current selections are shown; review and retry.",
+      "write_failed": "Saving was incomplete. The current selections are shown; review and retry."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "supply_temperature": {
+        "name": "Boiler supply temperature"
+      },
+      "return_temperature": {
+        "name": "Boiler return temperature"
+      },
+      "target_temperature": {
+        "name": "Boiler water target"
+      },
+      "circuit_water_request": {
+        "name": "Heating circuit water request"
+      },
+      "burner_modulation": {
+        "name": "Burner modulation"
+      },
+      "read_timestamp": {
+        "name": "Boiler cloud read time"
+      },
+      "operation": {
+        "name": "Boiler operation",
+        "state": {
+          "heating": "Heating with flame",
+          "dhw": "Hot water with flame",
+          "heating_and_dhw": "Heating and hot water with flame",
+          "heating_without_flame": "Heating mode without flame",
+          "dhw_without_flame": "Hot water mode without flame",
+          "both_without_flame": "Heating and hot water modes without flame",
+          "idle": "Idle",
+          "flame_only": "Flame without heating or hot water flag"
+        }
+      }
+    },
+    "binary_sensor": {
+      "flame": {
+        "name": "Boiler flame"
+      },
+      "heating": {
+        "name": "Boiler heating mode"
+      },
+      "dhw": {
+        "name": "Boiler hot water mode"
+      }
+    },
+    "climate": {
+      "heating_control": {
+        "name": "Room heating"
+      }
+    }
+  }
+}
