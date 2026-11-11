@@ -270,7 +270,10 @@ class Runtime:
                 if self._next_feed is not None and self.now() < self._next_feed:
                     self.status["state"] = "delivery_verified" if self._last_delivery else "waiting_for_feed"
                     return self._publish()
-                self._next_feed = self.now() + 30
+                # HA schedules ticks every 30s. Leave 5s for callback/read jitter
+                # so a slightly early tick does not create a 60s delivery gap.
+                # Keep a minimum interval to reject rapid duplicate ticks.
+                self._next_feed = self.now() + 25
                 await self.client.connect()
                 if self._uncertain_feed:
                     await self.client.read_sensor()

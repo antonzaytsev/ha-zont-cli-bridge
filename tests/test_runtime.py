@@ -149,6 +149,22 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
         await self.r.tick()
         self.assertEqual(self.z.feeds, [21.3])
 
+    async def test_scheduler_jitter_does_not_skip_a_temperature_delivery(self):
+        await self.r.tick()
+        # HA's interval callback can arrive slightly early after a slower tick.
+        for elapsed in (29.2, 30.3, 29.1, 30.5):
+            self.time += elapsed
+            result = await self.r.tick()
+            self.assertEqual(result["last_verified_delivery"], runtime._iso(self.time))
+        self.assertEqual(len(self.z.feeds), 5)
+
+    async def test_feed_spacing_still_rejects_rapid_duplicate_ticks(self):
+        await self.r.tick()
+        for elapsed in (0, 1, 10, 13):
+            self.time += elapsed
+            await self.r.tick()
+        self.assertEqual(len(self.z.feeds), 1)
+
     async def test_explicit_goal_fresh_manual_read_and_external_conflict(self):
         await self.r.tick()
         self.z.device["io"]["z3k-state"]["200"]["target_temp"] = 26

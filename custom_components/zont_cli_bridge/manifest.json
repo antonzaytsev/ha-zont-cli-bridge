@@ -1,7 +1,7 @@
 {
   "domain": "zont_cli_bridge",
   "name": "ZONT",
-  "version": "0.2.0a2",
+  "version": "0.2.0a3",
   "config_flow": true,
   "documentation": "https://github.com/antonzaytsev/ha-zont-cli-bridge",
   "issue_tracker": "https://github.com/antonzaytsev/ha-zont-cli-bridge/issues",
