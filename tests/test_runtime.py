@@ -149,6 +149,46 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
         await self.r.tick()
         self.assertEqual(self.z.feeds, [21.3])
 
+    async def test_missing_telemetry_recovers_without_reload_or_goal_replay(self):
+        for key in ("200", "789"):
+            with self.subTest(missing=key):
+                self.setUp()
+                await self.r.tick()
+                saved = self.z.device["io"]["z3k-state"].pop(key)
+                self.time += 120
+                result = await self.r.tick()
+                self.assertEqual(result["state"], "actual_state_missing")
+                self.assertFalse(result["control_available"])
+                self.assertEqual(len(self.z.feeds), 1)
+                self.time += 30
+                await self.r.tick()
+                self.assertEqual(len(self.z.feeds), 1)
+                self.z.device["io"]["z3k-state"][key] = saved
+                self.time += 30
+                result = await self.r.tick()
+                self.assertEqual(result["state"], "delivery_verified")
+                self.assertIsNone(result["configuration_block"])
+                self.assertTrue(result["control_available"])
+                self.assertEqual(len(self.z.feeds), 2)
+                self.assertEqual(self.z.goals, [])
+
+    async def test_missing_telemetry_never_clears_prior_configuration_block(self):
+        await self.r.tick()
+        circuit = self.z.device["z3k_config"]["heating_circuits"][0]
+        circuit["air_temp_sensor"] = 999
+        self.time += 120
+        await self.r.tick()
+        circuit["air_temp_sensor"] = 456
+        saved = self.z.device["io"]["z3k-state"].pop("789")
+        self.time += 30
+        await self.r.tick()
+        self.z.device["io"]["z3k-state"]["789"] = saved
+        self.time += 30
+        result = await self.r.tick()
+        self.assertEqual(result["configuration_block"], "managed_configuration_changed")
+        self.assertFalse(result["control_available"])
+        self.assertEqual(len(self.z.feeds), 1)
+
     async def test_scheduler_jitter_does_not_skip_a_temperature_delivery(self):
         await self.r.tick()
         # HA's interval callback can arrive slightly early after a slower tick.

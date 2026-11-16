@@ -195,7 +195,14 @@ class Runtime:
         try:
             self._actual = managed_device(device, self.config)
         except ZontError as err:
-            self._blocked, self._lease = err.code, None
+            # A reconnect can temporarily omit live IO despite unchanged
+            # configuration. Withdraw authorization until a complete read,
+            # without latching a permanent configuration fault or replacing
+            # one already detected. Identity/assignment changes stay sticky.
+            self._lease = None
+            self._actual = None
+            if err.code != "actual_state_missing":
+                self._blocked = err.code
             raise
         except (TypeError, AttributeError, ValueError, KeyError, IndexError):
             self._blocked, self._lease = "managed_configuration_invalid", None
